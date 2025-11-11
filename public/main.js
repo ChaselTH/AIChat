@@ -174,15 +174,64 @@ async function initLive2D() {
   });
 
   try {
+    await ensureLive2DAssets();
     live2dModel = await PIXI.live2d.Live2DModel.from(LIVE2D_MODEL_PATH);
     live2dModel.scale.set(0.5);
     live2dModel.position.set(canvas.width / 2, canvas.height);
     live2dModel.anchor.set(0.5, 1);
     pixiApp.stage.addChild(live2dModel);
   } catch (err) {
-    console.warn('无法加载 Live2D 模型：', err.message);
-    statusEl.textContent = '未找到 Live2D 模型，请按提示放置文件';
+    console.warn('无法加载 Live2D 模型：', err);
+    statusEl.textContent = `Live2D 模型加载失败：${err.message}`;
   }
+}
+
+async function ensureLive2DAssets() {
+  const modelUrl = new URL(LIVE2D_MODEL_PATH, window.location.href);
+  const response = await fetch(modelUrl);
+  if (!response.ok) {
+    throw new Error(`模型文件不存在 (HTTP ${response.status})`);
+  }
+
+  const settings = await response.json();
+  const baseUrl = modelUrl.href.substring(0, modelUrl.href.lastIndexOf('/'));
+
+  const requiredFiles = new Set();
+  if (settings?.FileReferences?.Moc) {
+    requiredFiles.add(settings.FileReferences.Moc);
+  }
+  if (Array.isArray(settings?.FileReferences?.Textures)) {
+    settings.FileReferences.Textures.forEach((texture) => {
+      if (texture) {
+        requiredFiles.add(texture);
+      }
+    });
+  }
+  if (settings?.FileReferences?.Physics) {
+    requiredFiles.add(settings.FileReferences.Physics);
+  }
+  if (settings?.FileReferences?.DisplayInfo) {
+    requiredFiles.add(settings.FileReferences.DisplayInfo);
+  }
+
+  const motions = settings?.FileReferences?.Motions || {};
+  Object.values(motions).forEach((motionGroup) => {
+    motionGroup.forEach((motion) => {
+      if (motion?.File) {
+        requiredFiles.add(motion.File);
+      }
+    });
+  });
+
+  await Promise.all(
+    Array.from(requiredFiles).map(async (filePath) => {
+      const assetUrl = `${baseUrl}/${filePath}`;
+      const headResponse = await fetch(assetUrl, { method: 'HEAD' });
+      if (!headResponse.ok) {
+        throw new Error(`缺少模型依赖文件：${filePath}`);
+      }
+    })
+  );
 }
 
 function initAudioAnalyser() {
