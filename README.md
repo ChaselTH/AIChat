@@ -85,9 +85,8 @@ npm run dev
 
 ### 4. Live2D 模型
 
-- 仓库已经预留了 `public/assets/models/hiyori_free_t08/` 目录，可直接把下载包里的 `runtime/hiyori_free_t08.2048` 内容复制并重命名到这里
-- 确保 `hiyori_free_t08.model3.json` 与贴图、motions、expressions 等资源保持在同一目录结构（详见 `public/assets/models/hiyori_free_t08/README.md`）
-- `public/main.js` 中的 `LIVE2D_MODEL_PATH` 已指向 `assets/models/hiyori_free_t08/hiyori_free_t08.model3.json`，按需调整为其他模型时修改此常量
+- 将 `.model3.json` 及其依赖资源拷贝到 `public/assets/models/<your-model>/`
+- 修改 `public/main.js` 中的 `LIVE2D_MODEL_PATH`
 - 如果需要表情、动作等高级控制，可在 Live2D 模型加载后访问 `live2dModel.internalModel` 进行扩展
 
 ### 5. 前端扩展
