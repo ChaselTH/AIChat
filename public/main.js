@@ -3,7 +3,8 @@ const stopBtn = document.getElementById('stopBtn');
 const statusEl = document.getElementById('status');
 const conversationEl = document.getElementById('conversation');
 const assistantAudioEl = document.getElementById('assistantAudio');
-const LIVE2D_MODEL_PATH = 'assets/models/haru/haru.model3.json'; // TODO: 替换为真实模型路径
+const LIVE2D_MODEL_PATH =
+  'assets/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json';
 
 let mediaRecorder;
 let audioChunks = [];
