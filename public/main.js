@@ -4,90 +4,7 @@ const statusEl = document.getElementById('status');
 const conversationEl = document.getElementById('conversation');
 const assistantAudioEl = document.getElementById('assistantAudio');
 const LIVE2D_MODEL_PATH =
-  '/assets/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json';
-const LIVE2D_CUBISM_CORE_URL =
-  'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js';
-const PIXI_SCRIPT_URL =
-  'https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js';
-const PIXI_LIVE2D_SCRIPT_URL =
-  'https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.2/dist/pixi-live2d-display.min.js';
-
-const scriptPromises = new Map();
-
-function loadExternalScript(src) {
-  if (scriptPromises.has(src)) {
-    return scriptPromises.get(src);
-  }
-
-  const promise = new Promise((resolve, reject) => {
-    const absoluteSrc = new URL(src, window.location.href).href;
-    const existing = Array.from(document.getElementsByTagName('script')).find(
-      (script) => script.src === absoluteSrc
-    );
-
-    if (existing) {
-      const readyStates = ['complete', 'loaded'];
-      if (
-        existing.dataset.loaded === 'true' ||
-        readyStates.includes(existing.readyState)
-      ) {
-        existing.dataset.loaded = 'true';
-        resolve();
-        return;
-      }
-
-      if (existing.dataset.loaded === 'true') {
-        resolve();
-        return;
-      }
-
-      existing.addEventListener('load', () => {
-        existing.dataset.loaded = 'true';
-        resolve();
-      }, { once: true });
-      existing.addEventListener('error', () => {
-        scriptPromises.delete(src);
-        reject(new Error(`无法加载脚本：${src}`));
-      }, { once: true });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = absoluteSrc;
-    script.async = true;
-    script.dataset.loaded = 'false';
-    script.onload = () => {
-      script.dataset.loaded = 'true';
-      resolve();
-    };
-    script.onerror = () => {
-      scriptPromises.delete(src);
-      reject(new Error(`无法加载脚本：${src}`));
-    };
-    document.head.appendChild(script);
-  });
-
-  scriptPromises.set(src, promise);
-  return promise;
-}
-
-async function ensurePixiLive2D() {
-  if (!window.PIXI) {
-    await loadExternalScript(PIXI_SCRIPT_URL);
-  }
-
-  if (!window.Live2DCubismCore) {
-    await loadExternalScript(LIVE2D_CUBISM_CORE_URL);
-  }
-
-  if (!window.PIXI?.live2d?.Live2DModel) {
-    await loadExternalScript(PIXI_LIVE2D_SCRIPT_URL);
-  }
-
-  if (!window.PIXI?.live2d?.Live2DModel) {
-    throw new Error('未能初始化 Live2D 渲染库，请检查网络或脚本引入。');
-  }
-}
+  'assets/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json';
 
 let mediaRecorder;
 let audioChunks = [];
@@ -250,16 +167,6 @@ function interpolateMouthCue(keyframes, timeMs) {
 async function initLive2D() {
   const canvas = document.getElementById('live2dCanvas');
   try {
-    await ensurePixiLive2D();
-    if (!pixiApp) {
-      pixiApp = new PIXI.Application({
-        view: canvas,
-        autoStart: true,
-        resizeTo: canvas,
-        transparent: true
-      });
-    }
-
     await ensureLive2DAssets();
     live2dModel = await PIXI.live2d.Live2DModel.from(LIVE2D_MODEL_PATH);
     live2dModel.scale.set(0.5);
@@ -269,22 +176,6 @@ async function initLive2D() {
   } catch (err) {
     console.warn('无法加载 Live2D 模型：', err);
     statusEl.textContent = `Live2D 模型加载失败：${err.message}`;
-  }
-}
-
-async function ensureLive2DAssets() {
-  const modelUrl = new URL(LIVE2D_MODEL_PATH, window.location.href);
-  const response = await fetch(modelUrl);
-  if (!response.ok) {
-    throw new Error(`模型文件不存在 (HTTP ${response.status})`);
-  }
-
-  const settings = await response.json();
-  const baseUrl = modelUrl.href.substring(0, modelUrl.href.lastIndexOf('/'));
-
-  const requiredFiles = new Set();
-  if (settings?.FileReferences?.Moc) {
-    requiredFiles.add(settings.FileReferences.Moc);
   }
   if (Array.isArray(settings?.FileReferences?.Textures)) {
     settings.FileReferences.Textures.forEach((texture) => {
@@ -328,6 +219,54 @@ async function ensureLive2DAssets() {
         } else {
           throw new Error(`缺少模型依赖文件：${filePath}`);
         }
+      }
+    })
+  );
+}
+
+async function ensureLive2DAssets() {
+  const modelUrl = new URL(LIVE2D_MODEL_PATH, window.location.href);
+  const response = await fetch(modelUrl);
+  if (!response.ok) {
+    throw new Error(`模型文件不存在 (HTTP ${response.status})`);
+  }
+
+  const settings = await response.json();
+  const baseUrl = modelUrl.href.substring(0, modelUrl.href.lastIndexOf('/'));
+
+  const requiredFiles = new Set();
+  if (settings?.FileReferences?.Moc) {
+    requiredFiles.add(settings.FileReferences.Moc);
+  }
+  if (Array.isArray(settings?.FileReferences?.Textures)) {
+    settings.FileReferences.Textures.forEach((texture) => {
+      if (texture) {
+        requiredFiles.add(texture);
+      }
+    });
+  }
+  if (settings?.FileReferences?.Physics) {
+    requiredFiles.add(settings.FileReferences.Physics);
+  }
+  if (settings?.FileReferences?.DisplayInfo) {
+    requiredFiles.add(settings.FileReferences.DisplayInfo);
+  }
+
+  const motions = settings?.FileReferences?.Motions || {};
+  Object.values(motions).forEach((motionGroup) => {
+    motionGroup.forEach((motion) => {
+      if (motion?.File) {
+        requiredFiles.add(motion.File);
+      }
+    });
+  });
+
+  await Promise.all(
+    Array.from(requiredFiles).map(async (filePath) => {
+      const assetUrl = `${baseUrl}/${filePath}`;
+      const headResponse = await fetch(assetUrl, { method: 'HEAD' });
+      if (!headResponse.ok) {
+        throw new Error(`缺少模型依赖文件：${filePath}`);
       }
     })
   );
