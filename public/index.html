@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 语音对话机器人 Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.2/dist/pixi-live2d-display.min.js"></script>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="controls">
+        <h1>AI 语音对话机器人</h1>
+        <div class="record-controls">
+          <button id="startBtn">🎙️ 开始录音</button>
+          <button id="stopBtn" disabled>⏹️ 结束录音</button>
+          <span id="status">等待中…</span>
+        </div>
+        <div class="conversation" id="conversation"></div>
+      </section>
+      <section class="live2d-panel">
+        <canvas id="live2dCanvas" width="600" height="600"></canvas>
+        <p class="hint">
+          将 Live2D model3.json 放入 <code>public/assets/models</code> 后，修改
+          <code>LIVE2D_MODEL_PATH</code> 即可加载。
+        </p>
+      </section>
+    </main>
+    <audio id="assistantAudio" crossorigin="anonymous"></audio>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
