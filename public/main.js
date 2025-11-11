@@ -4,7 +4,7 @@ const statusEl = document.getElementById('status');
 const conversationEl = document.getElementById('conversation');
 const assistantAudioEl = document.getElementById('assistantAudio');
 const LIVE2D_MODEL_PATH =
-  '/assets/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json';
+  'assets/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json';
 
 let mediaRecorder;
 let audioChunks = [];
