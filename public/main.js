@@ -166,13 +166,6 @@ function interpolateMouthCue(keyframes, timeMs) {
 
 async function initLive2D() {
   const canvas = document.getElementById('live2dCanvas');
-  pixiApp = new PIXI.Application({
-    view: canvas,
-    autoStart: true,
-    resizeTo: canvas,
-    transparent: true
-  });
-
   try {
     await ensureLive2DAssets();
     live2dModel = await PIXI.live2d.Live2DModel.from(LIVE2D_MODEL_PATH);
@@ -184,6 +177,51 @@ async function initLive2D() {
     console.warn('无法加载 Live2D 模型：', err);
     statusEl.textContent = `Live2D 模型加载失败：${err.message}`;
   }
+  if (Array.isArray(settings?.FileReferences?.Textures)) {
+    settings.FileReferences.Textures.forEach((texture) => {
+      if (texture) {
+        requiredFiles.add(texture);
+      }
+    });
+  }
+  if (settings?.FileReferences?.Physics) {
+    requiredFiles.add(settings.FileReferences.Physics);
+  }
+  if (settings?.FileReferences?.DisplayInfo) {
+    requiredFiles.add(settings.FileReferences.DisplayInfo);
+  }
+
+  const motions = settings?.FileReferences?.Motions || {};
+  Object.values(motions).forEach((motionGroup) => {
+    motionGroup.forEach((motion) => {
+      if (motion?.File) {
+        requiredFiles.add(motion.File);
+      }
+    });
+  });
+
+  await Promise.all(
+    Array.from(requiredFiles).map(async (filePath) => {
+      const assetUrl = `${baseUrl}/${filePath}`;
+      let headResponse;
+      try {
+        headResponse = await fetch(assetUrl, { method: 'HEAD' });
+      } catch (err) {
+        throw new Error(`无法请求模型依赖文件：${filePath}`);
+      }
+
+      if (!headResponse.ok) {
+        if (headResponse.status === 405 || headResponse.status === 501) {
+          const getResponse = await fetch(assetUrl, { method: 'GET' });
+          if (!getResponse.ok) {
+            throw new Error(`缺少模型依赖文件：${filePath}`);
+          }
+        } else {
+          throw new Error(`缺少模型依赖文件：${filePath}`);
+        }
+      }
+    })
+  );
 }
 
 async function ensureLive2DAssets() {
